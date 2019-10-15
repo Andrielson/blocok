@@ -1,32 +1,97 @@
-import { Component } from '@angular/core';
+import { Component, ViewChild } from '@angular/core';
+import { AgGridAngular } from 'ag-grid-angular';
+
+interface produtoK { //|K200|30092019|PSA0092|366,930|1|8406|
+  prefixo: string, //|K200|
+  data: string, //|30092019|
+  codigo: string, //|PSA0092|
+  quantidade: string, //|366,930|
+  posicao: string, //|1|
+  fornecedor?: string //|8406|
+}
 
 @Component({
   selector: 'app-root',
   template: `
-    <!--The content below is only a placeholder and can be replaced.-->
-    <div style="text-align:center" class="content">
-      <h1>
-        Welcome to {{title}}!
-      </h1>
-      <span style="display: block">{{ title }} app is running!</span>
-      <img width="300" alt="Angular Logo" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNTAgMjUwIj4KICAgIDxwYXRoIGZpbGw9IiNERDAwMzEiIGQ9Ik0xMjUgMzBMMzEuOSA2My4ybDE0LjIgMTIzLjFMMTI1IDIzMGw3OC45LTQzLjcgMTQuMi0xMjMuMXoiIC8+CiAgICA8cGF0aCBmaWxsPSIjQzMwMDJGIiBkPSJNMTI1IDMwdjIyLjItLjFWMjMwbDc4LjktNDMuNyAxNC4yLTEyMy4xTDEyNSAzMHoiIC8+CiAgICA8cGF0aCAgZmlsbD0iI0ZGRkZGRiIgZD0iTTEyNSA1Mi4xTDY2LjggMTgyLjZoMjEuN2wxMS43LTI5LjJoNDkuNGwxMS43IDI5LjJIMTgzTDEyNSA1Mi4xem0xNyA4My4zaC0zNGwxNy00MC45IDE3IDQwLjl6IiAvPgogIDwvc3ZnPg==">
+  <div class="container">
+    <h1 class="text-center">Bloco K</h1>
+    <div class="custom-file">
+      <input type="file" class="custom-file-input" id="customFile" (change)="onFileInputChange($event)">
+      <label class="custom-file-label" for="customFile">{{nomeDoArquivo}}</label>
     </div>
-    <h2>Here are some links to help you start: </h2>
-    <ul>
-      <li>
-        <h2><a target="_blank" rel="noopener" href="https://angular.io/tutorial">Tour of Heroes</a></h2>
-      </li>
-      <li>
-        <h2><a target="_blank" rel="noopener" href="https://angular.io/cli">CLI Documentation</a></h2>
-      </li>
-      <li>
-        <h2><a target="_blank" rel="noopener" href="https://blog.angular.io/">Angular blog</a></h2>
-      </li>
-    </ul>
-    
+    <div class="mt-3">
+      <ag-grid-angular
+        #agGrid
+        style="width: 100%; height: 700px;" 
+        class="ag-theme-balham"
+        [rowData]="rowData" 
+        [columnDefs]="columnDefs"
+        [defaultColDef]="defaultColDef"
+        >
+      </ag-grid-angular>
+    </div>
+    <button type="button" class="btn btn-danger" (click)="onClickRemover()">Remover selecionados</button>
+  </div>
   `,
   styles: []
 })
 export class AppComponent {
-  title = 'blocok';
+  @ViewChild('agGrid', { static: true }) private agGrid: AgGridAngular;
+  private columnDefs = [
+    { headerName: 'Prefixo', field: 'prefixo' },
+    { headerName: 'Data', field: 'data' },
+    { headerName: 'Código', field: 'codigo', filter: true, checkboxSelection: true },
+    { headerName: 'Quantidade', field: 'quantidade' },
+    { headerName: 'Posição', field: 'posicao' },
+    { headerName: 'Fornecedor', field: 'fornecedor' }
+  ];
+
+  private rowData: produtoK[] = [];
+
+  private nomeDoArquivo = 'Selecione o arquivo';
+
+  private defaultColDef = {
+    resizable: true
+  };
+
+  private arquivoOriginal: string;
+
+  public onFileInputChange(evt: any) {
+    const target: DataTransfer = <DataTransfer>(evt.target);
+    if (target.files.length === 1) {
+      this.nomeDoArquivo = target.files.item(0).name;
+      const reader = new FileReader();
+      reader.onload = () => {
+        this.arquivoOriginal = reader.result as string;
+        const linhas: string[] = this.arquivoOriginal.split(/\r\n|\n/);
+        this.rowData = linhas.filter(l => l.startsWith('|K200|'))
+          .map(l => {
+            const k = l.split('|');
+            return {
+              prefixo: k[1],
+              data: k[2],
+              codigo: k[3],
+              quantidade: k[4],
+              posicao: k[5],
+              fornecedor: k[6]
+            }
+          });
+        this.agGrid.api.sizeColumnsToFit();
+      };
+
+      reader.onerror = () => {
+        alert('Não foi possível ler o arquivo ' + target.files[0]);
+      };
+
+      reader.readAsText(target.files.item(0));
+    }
+  }
+
+  public onClickRemover() {
+    const selecionados = this.agGrid.api.getSelectedRows();
+    if (selecionados.length > 0)
+      this.agGrid.api.updateRowData({ remove: selecionados });
+    else
+      alert('Não há produtos selecionados!');
+  }
 }
