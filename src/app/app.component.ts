@@ -37,7 +37,7 @@ interface produtoK { //|K200|30092019|PSA0092|366,930|1|8406|
 })
 export class AppComponent {
   @ViewChild('agGrid', { static: true }) private agGrid: AgGridAngular;
-  private columnDefs = [
+  public columnDefs = [
     { headerName: 'Prefixo', field: 'prefixo' },
     { headerName: 'Data', field: 'data' },
     { headerName: 'Código', field: 'codigo', filter: true, checkboxSelection: true },
@@ -46,11 +46,11 @@ export class AppComponent {
     { headerName: 'Fornecedor', field: 'fornecedor' }
   ];
 
-  private rowData: produtoK[] = [];
+  public rowData: produtoK[] = [];
 
-  private nomeDoArquivo = 'Selecione o arquivo';
+  public nomeDoArquivo = 'Selecione o arquivo';
 
-  private defaultColDef = {
+  public defaultColDef = {
     resizable: true
   };
 
