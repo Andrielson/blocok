@@ -206,21 +206,21 @@ export class AppComponent {
   }
 
   private remontarArquivo() {
-    let novoArquivo: string;
+    let arquivo: string;
     const ln = '\r\n';
 
-    const t0000a0100 = this.dados0000a0100.join(ln).concat(ln);
-    const t0150 = this.getExtras(this.dados0150, ln);//this.dados0150.filter(d => d.quantidade > 0).reduce((t, d) => t.concat(d.linha, ln), '');
-    const t0190 = this.getExtras(this.dados0190, ln);//this.dados0190.filter(d => d.quantidade > 0).reduce((t, d) => t.concat(d.linha, ln), '');
-    const t0200 = this.getExtras(this.dados0200, ln);//this.dados0200.filter(d => d.quantidade > 0).reduce((t, d) => t.concat(d.linha, ln), '');
-    const t0990 = `|0990|${this.contador0990}|`.concat(ln);
-    const tB001aK100 = this.dadosB001aK100.join(ln).concat(ln);
-
-    novoArquivo = t0000a0100.concat(t0150, t0190, t0200, t0990, tB001aK100);
-    saveAs(new Blob([novoArquivo], { type: 'application/octet-stream' }), `BlocoK${Date.now()}.txt`);
+    arquivo = this.dados0000a0100.join(ln).concat(ln);
+    arquivo += this.getExtras(this.dados0150, ln);
+    arquivo += this.getExtras(this.dados0190, ln);
+    arquivo += this.getExtras(this.dados0200, ln);
+    arquivo += `|0990|${this.contador0990}|`.concat(ln);
+    arquivo += this.dadosB001aK100.join(ln).concat(ln);
+    arquivo += this.dadosK200.reduce((t, d) => t.concat(`|K200|${d.data}|${d.codigo}|${d.quantidade}|${d.posicao}|${d.fornecedor}|`, ln), '');
+    saveAs(new Blob([arquivo], { type: 'application/octet-stream' }), `BlocoK${Date.now()}.txt`);
   }
 
   private getExtras(dados: DadosExtras[], ln: string): string {
-    return dados.filter(d => d.quantidade > 0).reduce((t, d) => t.concat(d.linha, ln), '');
+    return dados.filter(d => d.quantidade > 0)
+      .reduce((t, d) => t.concat(d.linha, ln), '');
   }
 }
