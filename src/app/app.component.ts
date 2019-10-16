@@ -1,5 +1,6 @@
 import { Component, ViewChild } from '@angular/core';
 import { AgGridAngular } from 'ag-grid-angular';
+import { saveAs } from 'file-saver';
 
 interface DadosExtras {
   id: number;
@@ -14,14 +15,14 @@ interface ProdutoK200 { //|K200|30092019|PSA0092|366,930|1|8406|
   codigo: string, //|PSA0092|
   quantidade: string, //|366,930|
   posicao: string, //|1|
-  fornecedor?: string //|8406|
+  fornecedor: string //|8406|
 }
 
 @Component({
   selector: 'app-root',
   template: `
   <div class="container">
-    <h1 class="text-center">Bloco K</h1>
+    <h1 class="text-center">BLOCO K</h1>
     <div class="custom-file">
       <input type="file" class="custom-file-input" id="customFile" (change)="onFileInputChange($event)">
       <label class="custom-file-label" for="customFile">{{labelInputArquivo}}</label>
@@ -37,7 +38,7 @@ interface ProdutoK200 { //|K200|30092019|PSA0092|366,930|1|8406|
         >
       </ag-grid-angular>
     </div>
-    <button type="button" class="btn btn-danger" (click)="onClickRemover()">Remover selecionados</button>
+    <button type="button" class="btn btn-danger" (click)="onClickRemover()">Remover produto</button>
   </div>
   `,
   styles: []
@@ -81,7 +82,7 @@ export class AppComponent {
     const prefs9900_0990aK100 = ['|0990|'].concat(prefsB001aK100);
     const prefs9900_K990a9900 = ['|K990|'].concat(prefs1001a9001, ['|9990|', '|9999|', '|9900|']);
     const prefSplit = ['|0150|', '|0190|', '|0200|', '|0990|', '|K200|', '|K990|', '|9999|'];
-    const gambiarra: ProdutoK200[] = [];
+    const naoseipq: ProdutoK200[] = [];
 
     linhas.forEach((l, i) => {
       const p = l.slice(0, 6);
@@ -115,6 +116,8 @@ export class AppComponent {
             linha: l,
             quantidade: 0
           });
+          // Incrementa o contador das unidades utilizadas
+          this.dados0190.find(u => u.codigo === d[6]).quantidade++;
           break;
         case '|0990|':
           this.contador0990 = Number(d[2]);
@@ -128,13 +131,30 @@ export class AppComponent {
             posicao: d[5],
             fornecedor: d[6]
           };
-          gambiarra.push(k);
+
+          // Incrementa o contador dos fornecedores utilizados
+          const f = this.dados0150.find(f => f.codigo === k.fornecedor);
+          if (f) {
+            f.quantidade++;
+          }
+
+          // Incrementa o contador dos produtos utilizados
+          this.dados0200.find(p => p.codigo === k.codigo).quantidade++;
+
+          naoseipq.push(k);
           break;
         case '|K990|':
           this.contadorK990 = Number(d[2]);
           break;
         case '|9900|':
-
+          const p9900 = l.slice(5, 11);
+          if (prefs9900_0000a0100.includes(p9900)) {
+            this.dados1001a9900_0100.push(l);
+          } else if (prefs9900_0990aK100.includes(p9900)) {
+            this.dados9900_0990a9900_K100.push(l);
+          } else if (prefs9900_K990a9900.includes(p9900)) {
+            this.dados9900_K990a9990.push(l);
+          }
           break;
         case '|9990|':
           this.dados9900_K990a9990.push(l);
@@ -153,7 +173,7 @@ export class AppComponent {
           break;
       }
     });
-    this.dadosK200 = gambiarra;
+    this.dadosK200 = naoseipq;
   }
 
   public onFileInputChange(evt: any) {
@@ -177,10 +197,30 @@ export class AppComponent {
   }
 
   public onClickRemover() {
-    const selecionados = this.agGrid.api.getSelectedRows();
+    /* const selecionados = this.agGrid.api.getSelectedRows();
     if (selecionados.length > 0)
       this.agGrid.api.updateRowData({ remove: selecionados });
     else
-      alert('Não há produtos selecionados!');
+      alert('Não há produtos selecionados!'); */
+    this.remontarArquivo();
+  }
+
+  private remontarArquivo() {
+    let novoArquivo: string;
+    const ln = '\r\n';
+
+    const t0000a0100 = this.dados0000a0100.join(ln).concat(ln);
+    const t0150 = this.getExtras(this.dados0150, ln);//this.dados0150.filter(d => d.quantidade > 0).reduce((t, d) => t.concat(d.linha, ln), '');
+    const t0190 = this.getExtras(this.dados0190, ln);//this.dados0190.filter(d => d.quantidade > 0).reduce((t, d) => t.concat(d.linha, ln), '');
+    const t0200 = this.getExtras(this.dados0200, ln);//this.dados0200.filter(d => d.quantidade > 0).reduce((t, d) => t.concat(d.linha, ln), '');
+    const t0990 = `|0990|${this.contador0990}|`.concat(ln);
+    const tB001aK100 = this.dadosB001aK100.join(ln).concat(ln);
+
+    novoArquivo = t0000a0100.concat(t0150, t0190, t0200, t0990, tB001aK100);
+    saveAs(new Blob([novoArquivo], { type: 'application/octet-stream' }), `BlocoK${Date.now()}.txt`);
+  }
+
+  private getExtras(dados: DadosExtras[], ln: string): string {
+    return dados.filter(d => d.quantidade > 0).reduce((t, d) => t.concat(d.linha, ln), '');
   }
 }
