@@ -1,6 +1,5 @@
 import { Component, ViewChild } from '@angular/core';
 import { AgGridAngular } from 'ag-grid-angular';
-import { Subject } from 'rxjs';
 
 interface DadosExtras {
   id: number;
@@ -27,12 +26,12 @@ interface ProdutoK200 { //|K200|30092019|PSA0092|366,930|1|8406|
       <input type="file" class="custom-file-input" id="customFile" (change)="onFileInputChange($event)">
       <label class="custom-file-label" for="customFile">{{labelInputArquivo}}</label>
     </div>
-    <div class="mt-3" *ngIf="aorus.closed">
+    <div class="mt-3">
       <ag-grid-angular
         #agGrid
         style="width: 100%; height: 600px;" 
         class="ag-theme-balham"
-        [rowData]="aorus | async" 
+        [rowData]="dadosK200" 
         [columnDefs]="columnDefs"
         [defaultColDef]="defaultColDef"
         >
@@ -59,8 +58,6 @@ export class AppComponent {
   private dados9900_K990a9990: string[] = [];
   private contador9999: number;
 
-  public aorus: Subject<ProdutoK200> = new Subject();
-
   public labelInputArquivo = 'Selecione o arquivo';
 
   public columnDefs = [
@@ -84,6 +81,7 @@ export class AppComponent {
     const prefs9900_0990aK100 = ['|0990|'].concat(prefsB001aK100);
     const prefs9900_K990a9900 = ['|K990|'].concat(prefs1001a9001, ['|9990|', '|9999|', '|9900|']);
     const prefSplit = ['|0150|', '|0190|', '|0200|', '|0990|', '|K200|', '|K990|', '|9999|'];
+    const gambiarra: ProdutoK200[] = [];
 
     linhas.forEach((l, i) => {
       const p = l.slice(0, 6);
@@ -130,8 +128,7 @@ export class AppComponent {
             posicao: d[5],
             fornecedor: d[6]
           };
-          this.dadosK200.push(k);
-          this.aorus.next(k);
+          gambiarra.push(k);
           break;
         case '|K990|':
           this.contadorK990 = Number(d[2]);
@@ -156,8 +153,7 @@ export class AppComponent {
           break;
       }
     });
-    this.aorus.complete();
-    //this.agGrid.api.sizeColumnsToFit();
+    this.dadosK200 = gambiarra;
   }
 
   public onFileInputChange(evt: any) {
@@ -169,19 +165,7 @@ export class AppComponent {
         const texto = reader.result as string;
         const linhas: string[] = texto.split(/\r\n|\n/);
         this.processaLinhas(linhas);
-        // this.dadosK200 = linhas.filter(l => l.startsWith('|K200|'))
-        //   .map(l => {
-        //     const k = l.split('|');
-        //     return {
-        //       prefixo: k[1],
-        //       data: k[2],
-        //       codigo: k[3],
-        //       quantidade: k[4],
-        //       posicao: k[5],
-        //       fornecedor: k[6]
-        //     }
-        //   });
-        //this.agGrid.api.sizeColumnsToFit();
+        this.agGrid.api.sizeColumnsToFit();
       };
 
       reader.onerror = () => {
