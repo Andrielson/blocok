@@ -24,26 +24,24 @@ const LN = '\r\n';
 @Component({
   selector: 'app-root',
   template: `
-  <div class="container">
+  <div class="container mt-3">
     <div class="row">
-      <div class="col">
-        <h1 class="text-center">BLOCO K</h1>
-      </div>
-    </div>
-    <div class="row">
-      <div class="col">
+      <div class="col-9">
         <div class="custom-file">
           <input type="file" class="custom-file-input" id="customFile" (change)="onFileInputChange($event)">
           <label class="custom-file-label" for="customFile">{{labelInputArquivo}}</label>
         </div>
       </div>
+      <div class="col-3">
+        <input class="form-control" type="text" placeholder="Filtro rápido..." #filtro (input)="agGrid.api.setQuickFilter(filtro.value)" />
+      </div>
     </div>
-    <div class="mt-3">
+    <div class="row mt-3">
       <div class="col">
         <ag-grid-angular
           #agGrid
-          style="width: 100%; height: 600px;" 
-          class="ag-theme-balham"
+          style="width: 100%; height: 630px;" 
+          class="ag-theme-balham" 
           [rowData]="dadosK200" 
           [columnDefs]="columnDefs"
           [defaultColDef]="defaultColDef"
@@ -56,10 +54,10 @@ const LN = '\r\n';
         <button type="button" class="btn btn-danger" (click)="onClickRemover()">Remover produto</button>
       </div>
       <div class="col-sm-2">
-        <button type="button" class="btn btn-warning" [disabled]="dadosK200Removidos.length === 0">Desfazer exclusão</button>
+        <button type="button" class="btn btn-warning" [disabled]="dadosK200Removidos.length === 0" (click)="onClickDesfazerExclusao()">Desfazer exclusão</button>
       </div>
       <div class="col-sm-2">
-        <button type="button" class="btn btn-primary" (click)="onClickBaixarArquivo()" [disabled]="dadosK200.length === 0">Baixar arquivo</button>
+        <button type="button" class="btn btn-primary" [disabled]="dadosK200.length === 0" (click)="onClickBaixarArquivo()">Baixar arquivo</button>
       </div>
     </div>
   </div>
@@ -75,16 +73,15 @@ export class AppComponent {
   private dados0200: DadosExtras[] = [];
   private contador0990: number;
   private dadosB001aK100: string[] = [];
-  public dadosK200: ProdutoK200[] = [];
   private contadorK990: number;
   private dados1001a9900_0100: string[] = [];
   private dados9900_0990a9900_K100: string[] = [];
   private dados9900_K990a9990: string[] = [];
   private contador9999: number;
+
+  public dadosK200: ProdutoK200[] = [];
   public dadosK200Removidos: ProdutoK200[] = [];
-
   public labelInputArquivo = 'Selecione o arquivo';
-
   public columnDefs = [
     { headerName: 'Prefixo', field: 'prefixo' },
     { headerName: 'Data', field: 'data' },
@@ -93,9 +90,9 @@ export class AppComponent {
     { headerName: 'Posição', field: 'posicao' },
     { headerName: 'Fornecedor', field: 'fornecedor' }
   ];
-
   public defaultColDef = {
-    resizable: true
+    resizable: true,
+    enableCellChangeFlash: true
   };
 
   private processaLinhas(linhas: string[]) {
@@ -106,7 +103,6 @@ export class AppComponent {
     const prefs9900_0990aK100 = ['|0990|'].concat(prefsB001aK100);
     const prefs9900_K990a9900 = ['|K990|'].concat(prefs1001a9001, ['|9990|', '|9999|', '|9900|']);
     const prefSplit = ['|0150|', '|0190|', '|0200|', '|0990|', '|K200|', '|K990|', '|9999|'];
-    const naoseipq: ProdutoK200[] = [];
 
     linhas.forEach((l, i) => {
       const p = l.slice(0, 6);
@@ -166,7 +162,7 @@ export class AppComponent {
           // Incrementa o contador dos produtos utilizados
           this.dados0200.find(p => p.codigo === k.codigo).quantidade++;
 
-          naoseipq.push(k);
+          this.dadosK200.push(k);
           break;
         case '|K990|':
           this.contadorK990 = Number(d[2]);
@@ -198,7 +194,7 @@ export class AppComponent {
           break;
       }
     });
-    this.dadosK200 = naoseipq;
+    this.agGrid.api.setRowData(this.dadosK200);
   }
 
   private setFornecedor(codigo: string, q: number) {
@@ -228,6 +224,11 @@ export class AppComponent {
       this.contador0990++;
       this.contador9999++;
     }
+  }
+
+  private getExtras(dados: DadosExtras[]): string {
+    return dados.filter(d => d.quantidade > 0)
+      .reduce((t, d) => t.concat(d.linha, LN), '');
   }
 
   public onFileInputChange(evt: any) {
@@ -270,6 +271,7 @@ export class AppComponent {
         this.dadosK200.splice(i, 1);
         // Atualiza contador
         this.contadorK990--;
+        this.contador9999--;
         // Atualiza grid
         this.agGrid.api.updateRowData({ remove: selecionados });
       }
@@ -299,8 +301,24 @@ export class AppComponent {
     saveAs(new Blob([arquivo], { type: 'application/octet-stream' }), `BlocoK_${Date.now()}.txt`);
   }
 
-  private getExtras(dados: DadosExtras[]): string {
-    return dados.filter(d => d.quantidade > 0)
-      .reduce((t, d) => t.concat(d.linha, LN), '');
+  public onClickDesfazerExclusao() {
+    if (this.dadosK200Removidos.length > 0) {
+      const k200 = this.dadosK200Removidos.pop();
+      const i = this.dadosK200.findIndex(k => k.id > k200.id);
+      this.setFornecedor(k200.fornecedor, +1);
+      this.setProdutoUnidade(k200.codigo, +1);
+      this.dadosK200.splice(i, 0, k200);
+      this.contadorK990++;
+      this.contador9999++;
+      this.agGrid.api.setRowData(this.dadosK200);
+      this.agGrid.api.forEachNode(r => {
+        if (r.data.id === k200.id) {
+          this.agGrid.api.ensureIndexVisible(r.rowIndex, 'middle');
+          this.agGrid.api.flashCells({ rowNodes: [r] });
+          this.agGrid.api.selectNode(r);
+          return;
+        }
+      });
+    }
   }
 }
