@@ -1,7 +1,15 @@
 import { Component, ViewChild } from '@angular/core';
 import { AgGridAngular } from 'ag-grid-angular';
+import { Subject } from 'rxjs';
 
-interface produtoK { //|K200|30092019|PSA0092|366,930|1|8406|
+interface DadosExtras {
+  id: number;
+  codigo: string;
+  quantidade: number;
+  linha: string;
+}
+
+interface ProdutoK200 { //|K200|30092019|PSA0092|366,930|1|8406|
   prefixo: string, //|K200|
   data: string, //|30092019|
   codigo: string, //|PSA0092|
@@ -17,14 +25,14 @@ interface produtoK { //|K200|30092019|PSA0092|366,930|1|8406|
     <h1 class="text-center">Bloco K</h1>
     <div class="custom-file">
       <input type="file" class="custom-file-input" id="customFile" (change)="onFileInputChange($event)">
-      <label class="custom-file-label" for="customFile">{{nomeDoArquivo}}</label>
+      <label class="custom-file-label" for="customFile">{{labelInputArquivo}}</label>
     </div>
-    <div class="mt-3">
+    <div class="mt-3" *ngIf="aorus.closed">
       <ag-grid-angular
         #agGrid
-        style="width: 100%; height: 700px;" 
+        style="width: 100%; height: 600px;" 
         class="ag-theme-balham"
-        [rowData]="rowData" 
+        [rowData]="aorus | async" 
         [columnDefs]="columnDefs"
         [defaultColDef]="defaultColDef"
         >
@@ -37,46 +45,143 @@ interface produtoK { //|K200|30092019|PSA0092|366,930|1|8406|
 })
 export class AppComponent {
   @ViewChild('agGrid', { static: true }) private agGrid: AgGridAngular;
+
+  private dados0000a0100: string[] = []; // |0000|,|0001|,|0005|,|0100|
+  private dados0150: DadosExtras[] = [];
+  private dados0190: DadosExtras[] = [];
+  private dados0200: DadosExtras[] = [];
+  private contador0990: number;
+  private dadosB001aK100: string[] = []; // |B001|,|B990|,|C001|,|C990|,|D001|,|D990|,|E001|,|E100|,|E110|,|E990|,|G001|,|G990|,|H001|,|H005|,|H990|,|K001|,|K100|
+  public dadosK200: ProdutoK200[] = [];
+  private contadorK990: number;
+  private dados1001a9900_0100: string[] = [];
+  private dados9900_0990a9900_K100: string[] = [];
+  private dados9900_K990a9990: string[] = [];
+  private contador9999: number;
+
+  public aorus: Subject<ProdutoK200> = new Subject();
+
+  public labelInputArquivo = 'Selecione o arquivo';
+
   public columnDefs = [
     { headerName: 'Prefixo', field: 'prefixo' },
     { headerName: 'Data', field: 'data' },
     { headerName: 'Código', field: 'codigo', filter: true, checkboxSelection: true },
-    { headerName: 'Quantidade', field: 'quantidade' },
+    { headerName: 'Quantidade', field: 'quantidade', editable: true },
     { headerName: 'Posição', field: 'posicao' },
     { headerName: 'Fornecedor', field: 'fornecedor' }
   ];
-
-  public rowData: produtoK[] = [];
-
-  public nomeDoArquivo = 'Selecione o arquivo';
 
   public defaultColDef = {
     resizable: true
   };
 
-  private arquivoOriginal: string;
+  private processaLinhas(linhas: string[]) {
+    const prefs0000a0100 = ['|0000|', '|0001|', '|0005|', '|0100|'];
+    const prefsB001aK100 = ['|B001|', '|B990|', '|C001|', '|C990|', '|D001|', '|D990|', '|E001|', '|E100|', '|E110|', '|E990|', '|G001|', '|G990|', '|H001|', '|H005|', '|H990|', '|K001|', '|K100|'];
+    const prefs1001a9001 = ['|1001|', '|1010|', '|1990|', '|9001|'];
+    const prefs9900_0000a0100 = prefs0000a0100;
+    const prefs9900_0990aK100 = ['|0990|'].concat(prefsB001aK100);
+    const prefs9900_K990a9900 = ['|K990|'].concat(prefs1001a9001, ['|9990|', '|9999|', '|9900|']);
+    const prefSplit = ['|0150|', '|0190|', '|0200|', '|0990|', '|K200|', '|K990|', '|9999|'];
+
+    linhas.forEach((l, i) => {
+      const p = l.slice(0, 6);
+      let d: string[];
+
+      if (prefSplit.includes(p)) {
+        d = l.split('|');
+      }
+
+      switch (p) {
+        case '|0150|':
+          this.dados0150.push({
+            id: i,
+            codigo: d[2],
+            linha: l,
+            quantidade: 0
+          });
+          break;
+        case '|0190|':
+          this.dados0190.push({
+            id: i,
+            codigo: d[2],
+            linha: l,
+            quantidade: 0
+          });
+          break;
+        case '|0200|':
+          this.dados0200.push({
+            id: i,
+            codigo: d[2],
+            linha: l,
+            quantidade: 0
+          });
+          break;
+        case '|0990|':
+          this.contador0990 = Number(d[2]);
+          break;
+        case '|K200|':
+          const k = {
+            prefixo: d[1],
+            data: d[2],
+            codigo: d[3],
+            quantidade: d[4],
+            posicao: d[5],
+            fornecedor: d[6]
+          };
+          this.dadosK200.push(k);
+          this.aorus.next(k);
+          break;
+        case '|K990|':
+          this.contadorK990 = Number(d[2]);
+          break;
+        case '|9900|':
+
+          break;
+        case '|9990|':
+          this.dados9900_K990a9990.push(l);
+          break;
+        case '|9999|':
+          this.contador9999 = Number(d[2]);
+          break;
+        default:
+          if (prefs0000a0100.includes(p)) {
+            this.dados0000a0100.push(l);
+          } else if (prefsB001aK100.includes(p)) {
+            this.dadosB001aK100.push(l);
+          } else if (prefs1001a9001.includes(p)) {
+            this.dados1001a9900_0100.push(l);
+          }
+          break;
+      }
+    });
+    this.aorus.complete();
+    //this.agGrid.api.sizeColumnsToFit();
+  }
 
   public onFileInputChange(evt: any) {
     const target: DataTransfer = <DataTransfer>(evt.target);
     if (target.files.length === 1) {
-      this.nomeDoArquivo = target.files.item(0).name;
+      this.labelInputArquivo = target.files.item(0).name;
       const reader = new FileReader();
       reader.onload = () => {
-        this.arquivoOriginal = reader.result as string;
-        const linhas: string[] = this.arquivoOriginal.split(/\r\n|\n/);
-        this.rowData = linhas.filter(l => l.startsWith('|K200|'))
-          .map(l => {
-            const k = l.split('|');
-            return {
-              prefixo: k[1],
-              data: k[2],
-              codigo: k[3],
-              quantidade: k[4],
-              posicao: k[5],
-              fornecedor: k[6]
-            }
-          });
-        this.agGrid.api.sizeColumnsToFit();
+        const texto = reader.result as string;
+        const linhas: string[] = texto.split(/\r\n|\n/);
+        this.processaLinhas(linhas);
+        // this.dadosK200 = linhas.filter(l => l.startsWith('|K200|'))
+        //   .map(l => {
+        //     const k = l.split('|');
+        //     return {
+        //       prefixo: k[1],
+        //       data: k[2],
+        //       codigo: k[3],
+        //       quantidade: k[4],
+        //       posicao: k[5],
+        //       fornecedor: k[6]
+        //     }
+        //   });
+        //this.agGrid.api.sizeColumnsToFit();
       };
 
       reader.onerror = () => {
