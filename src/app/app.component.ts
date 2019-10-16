@@ -9,36 +9,59 @@ interface DadosExtras {
   linha: string;
 }
 
-interface ProdutoK200 { //|K200|30092019|PSA0092|366,930|1|8406|
-  prefixo: string, //|K200|
-  data: string, //|30092019|
-  codigo: string, //|PSA0092|
-  quantidade: string, //|366,930|
-  posicao: string, //|1|
-  fornecedor: string //|8406|
+interface ProdutoK200 {
+  id: number;
+  prefixo: string;
+  data: string;
+  codigo: string;
+  quantidade: string;
+  posicao: string;
+  fornecedor: string;
 }
+
+const LN = '\r\n';
 
 @Component({
   selector: 'app-root',
   template: `
   <div class="container">
-    <h1 class="text-center">BLOCO K</h1>
-    <div class="custom-file">
-      <input type="file" class="custom-file-input" id="customFile" (change)="onFileInputChange($event)">
-      <label class="custom-file-label" for="customFile">{{labelInputArquivo}}</label>
+    <div class="row">
+      <div class="col">
+        <h1 class="text-center">BLOCO K</h1>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col">
+        <div class="custom-file">
+          <input type="file" class="custom-file-input" id="customFile" (change)="onFileInputChange($event)">
+          <label class="custom-file-label" for="customFile">{{labelInputArquivo}}</label>
+        </div>
+      </div>
     </div>
     <div class="mt-3">
-      <ag-grid-angular
-        #agGrid
-        style="width: 100%; height: 600px;" 
-        class="ag-theme-balham"
-        [rowData]="dadosK200" 
-        [columnDefs]="columnDefs"
-        [defaultColDef]="defaultColDef"
-        >
-      </ag-grid-angular>
+      <div class="col">
+        <ag-grid-angular
+          #agGrid
+          style="width: 100%; height: 600px;" 
+          class="ag-theme-balham"
+          [rowData]="dadosK200" 
+          [columnDefs]="columnDefs"
+          [defaultColDef]="defaultColDef"
+          >
+        </ag-grid-angular>
+      </div>
     </div>
-    <button type="button" class="btn btn-danger" (click)="onClickRemover()">Remover produto</button>
+    <div class="row justify-content-around mt-3">
+      <div class="col-sm-2">
+        <button type="button" class="btn btn-danger" (click)="onClickRemover()">Remover produto</button>
+      </div>
+      <div class="col-sm-2">
+        <button type="button" class="btn btn-warning">Desfazer exclusão</button>
+      </div>
+      <div class="col-sm-2">
+        <button type="button" class="btn btn-primary" (click)="onClickBaixarArquivo()">Baixar arquivo</button>
+      </div>
+    </div>
   </div>
   `,
   styles: []
@@ -46,18 +69,19 @@ interface ProdutoK200 { //|K200|30092019|PSA0092|366,930|1|8406|
 export class AppComponent {
   @ViewChild('agGrid', { static: true }) private agGrid: AgGridAngular;
 
-  private dados0000a0100: string[] = []; // |0000|,|0001|,|0005|,|0100|
+  private dados0000a0100: string[] = [];
   private dados0150: DadosExtras[] = [];
   private dados0190: DadosExtras[] = [];
   private dados0200: DadosExtras[] = [];
   private contador0990: number;
-  private dadosB001aK100: string[] = []; // |B001|,|B990|,|C001|,|C990|,|D001|,|D990|,|E001|,|E100|,|E110|,|E990|,|G001|,|G990|,|H001|,|H005|,|H990|,|K001|,|K100|
+  private dadosB001aK100: string[] = [];
   public dadosK200: ProdutoK200[] = [];
   private contadorK990: number;
   private dados1001a9900_0100: string[] = [];
   private dados9900_0990a9900_K100: string[] = [];
   private dados9900_K990a9990: string[] = [];
   private contador9999: number;
+  private dadosK200Removidos: ProdutoK200[] = [];
 
   public labelInputArquivo = 'Selecione o arquivo';
 
@@ -124,6 +148,7 @@ export class AppComponent {
           break;
         case '|K200|':
           const k = {
+            id: i,
             prefixo: d[1],
             data: d[2],
             codigo: d[3],
@@ -176,6 +201,35 @@ export class AppComponent {
     this.dadosK200 = naoseipq;
   }
 
+  private setFornecedor(codigo: string, q: number) {
+    if (codigo.trim().length > 0) {
+      const forne = this.dados0150.find(f => f.codigo === codigo);
+      forne.quantidade += q;
+      if (forne.quantidade <= 0) {
+        this.contador0990--;
+        this.contador9999--;
+      } else if (q > 0 && forne.quantidade === 1) {
+        this.contador0990++;
+        this.contador9999++;
+      }
+    }
+  }
+
+  private setProdutoUnidade(codigo: string, q: number) {
+    const pr = this.dados0200.find(p => p.codigo === codigo);
+    const un = pr.linha.split('|')[6];
+    const unid = this.dados0190.find(u => u.codigo === un);
+    pr.quantidade += q;
+    unid.quantidade += q;
+    if (pr.quantidade <= 0 || unid.quantidade <= 0) {
+      this.contador0990--;
+      this.contador9999--;
+    } else if (q > 0 && (pr.quantidade === 1 || unid.quantidade === 1)) {
+      this.contador0990++;
+      this.contador9999++;
+    }
+  }
+
   public onFileInputChange(evt: any) {
     const target: DataTransfer = <DataTransfer>(evt.target);
     if (target.files.length === 1) {
@@ -197,30 +251,54 @@ export class AppComponent {
   }
 
   public onClickRemover() {
-    /* const selecionados = this.agGrid.api.getSelectedRows();
-    if (selecionados.length > 0)
+    const selecionados = this.agGrid.api.getSelectedRows() as ProdutoK200[];
+    if (selecionados.length === 0) {
+      alert('Não há produtos selecionados!');
+    } else if (selecionados.length > 1) {
+      alert('Selecione apenas 1 produto!');
+    } else {
+      const k200 = selecionados[0];
+      const i = this.dadosK200.findIndex(k => k.id === k200.id);
+      // Reduz a quantidade do fornecedor
+      this.setFornecedor(k200.fornecedor, -1);
+      // Reduz a quantidade do produto e da unidade
+      this.setProdutoUnidade(k200.codigo, -1);
+      // Insere na pilha de removidos
+      this.dadosK200Removidos.push(k200);
+      // Remove do array
+      this.dadosK200.splice(i, 1);
+      // Atualiza contador
+      this.contadorK990--;
+      // Atualiza grid
       this.agGrid.api.updateRowData({ remove: selecionados });
-    else
-      alert('Não há produtos selecionados!'); */
-    this.remontarArquivo();
+    }
   }
 
-  private remontarArquivo() {
+  public onClickBaixarArquivo() {
     let arquivo: string;
-    const ln = '\r\n';
 
-    arquivo = this.dados0000a0100.join(ln).concat(ln);
-    arquivo += this.getExtras(this.dados0150, ln);
-    arquivo += this.getExtras(this.dados0190, ln);
-    arquivo += this.getExtras(this.dados0200, ln);
-    arquivo += `|0990|${this.contador0990}|`.concat(ln);
-    arquivo += this.dadosB001aK100.join(ln).concat(ln);
-    arquivo += this.dadosK200.reduce((t, d) => t.concat(`|K200|${d.data}|${d.codigo}|${d.quantidade}|${d.posicao}|${d.fornecedor}|`, ln), '');
-    saveAs(new Blob([arquivo], { type: 'application/octet-stream' }), `BlocoK${Date.now()}.txt`);
+    arquivo = this.dados0000a0100.join(LN).concat(LN);
+    arquivo += this.getExtras(this.dados0150);
+    arquivo += this.getExtras(this.dados0190);
+    arquivo += this.getExtras(this.dados0200);
+    arquivo += `|0990|${this.contador0990}|`.concat(LN);
+    arquivo += this.dadosB001aK100.join(LN).concat(LN);
+    arquivo += this.dadosK200.reduce((t, d) => t.concat(`|K200|${d.data}|${d.codigo}|${d.quantidade}|${d.posicao}|${d.fornecedor}|`, LN), '');
+    arquivo += `|K990|${this.contadorK990}|`.concat(LN);
+    arquivo += this.dados1001a9900_0100.join(LN).concat(LN);
+    arquivo += `|9900|0150|${this.dados0150.filter(d => d.quantidade > 0).length}|`.concat(LN);
+    arquivo += `|9900|0190|${this.dados0190.filter(d => d.quantidade > 0).length}|`.concat(LN);
+    arquivo += `|9900|0200|${this.dados0200.filter(d => d.quantidade > 0).length}|`.concat(LN);
+    arquivo += this.dados9900_0990a9900_K100.join(LN).concat(LN);
+    arquivo += `|9900|K200|${this.dadosK200.length}|`.concat(LN);
+    arquivo += this.dados9900_K990a9990.join(LN).concat(LN);
+    arquivo += `|9999|${this.contador9999}|`.concat(LN);
+
+    saveAs(new Blob([arquivo], { type: 'application/octet-stream' }), `BlocoK_${Date.now()}.txt`);
   }
 
-  private getExtras(dados: DadosExtras[], ln: string): string {
+  private getExtras(dados: DadosExtras[]): string {
     return dados.filter(d => d.quantidade > 0)
-      .reduce((t, d) => t.concat(d.linha, ln), '');
+      .reduce((t, d) => t.concat(d.linha, LN), '');
   }
 }
