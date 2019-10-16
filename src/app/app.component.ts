@@ -56,10 +56,10 @@ const LN = '\r\n';
         <button type="button" class="btn btn-danger" (click)="onClickRemover()">Remover produto</button>
       </div>
       <div class="col-sm-2">
-        <button type="button" class="btn btn-warning">Desfazer exclusão</button>
+        <button type="button" class="btn btn-warning" [disabled]="dadosK200Removidos.length === 0">Desfazer exclusão</button>
       </div>
       <div class="col-sm-2">
-        <button type="button" class="btn btn-primary" (click)="onClickBaixarArquivo()">Baixar arquivo</button>
+        <button type="button" class="btn btn-primary" (click)="onClickBaixarArquivo()" [disabled]="dadosK200.length === 0">Baixar arquivo</button>
       </div>
     </div>
   </div>
@@ -81,7 +81,7 @@ export class AppComponent {
   private dados9900_0990a9900_K100: string[] = [];
   private dados9900_K990a9990: string[] = [];
   private contador9999: number;
-  private dadosK200Removidos: ProdutoK200[] = [];
+  public dadosK200Removidos: ProdutoK200[] = [];
 
   public labelInputArquivo = 'Selecione o arquivo';
 
@@ -258,19 +258,21 @@ export class AppComponent {
       alert('Selecione apenas 1 produto!');
     } else {
       const k200 = selecionados[0];
-      const i = this.dadosK200.findIndex(k => k.id === k200.id);
-      // Reduz a quantidade do fornecedor
-      this.setFornecedor(k200.fornecedor, -1);
-      // Reduz a quantidade do produto e da unidade
-      this.setProdutoUnidade(k200.codigo, -1);
-      // Insere na pilha de removidos
-      this.dadosK200Removidos.push(k200);
-      // Remove do array
-      this.dadosK200.splice(i, 1);
-      // Atualiza contador
-      this.contadorK990--;
-      // Atualiza grid
-      this.agGrid.api.updateRowData({ remove: selecionados });
+      if (confirm(`Deseja excluir o produto ${k200.codigo}?`)) {
+        const i = this.dadosK200.findIndex(k => k.id === k200.id);
+        // Reduz a quantidade do fornecedor
+        this.setFornecedor(k200.fornecedor, -1);
+        // Reduz a quantidade do produto e da unidade
+        this.setProdutoUnidade(k200.codigo, -1);
+        // Insere na pilha de removidos
+        this.dadosK200Removidos.push(k200);
+        // Remove do array
+        this.dadosK200.splice(i, 1);
+        // Atualiza contador
+        this.contadorK990--;
+        // Atualiza grid
+        this.agGrid.api.updateRowData({ remove: selecionados });
+      }
     }
   }
 
