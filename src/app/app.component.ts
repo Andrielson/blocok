@@ -1,6 +1,8 @@
 import { Component, ViewChild } from '@angular/core';
 import { AgGridAngular } from 'ag-grid-angular';
 import { saveAs } from 'file-saver';
+import * as XLSX from 'xlsx';
+import { isUndefined } from 'util';
 
 interface DadosExtras {
   id: number;
@@ -26,23 +28,29 @@ const LN = '\r\n';
   template: `
   <div class="container mt-3">
     <div class="row">
-      <div class="col-9">
+      <div class="col-5">
         <div class="custom-file">
-          <input type="file" class="custom-file-input" id="customFile" (change)="onFileInputChange($event)">
-          <label class="custom-file-label" for="customFile">{{labelInputArquivo}}</label>
+          <input type="file" class="custom-file-input" id="inputFileTxt" (change)="onFileInputTxtChange($event)" accept=".txt">
+          <label class="custom-file-label" for="inputFileTxt">{{labelInputFileTxt}}</label>
         </div>
       </div>
-      <div class="col-3">
+      <div class="col-5">
+        <div class="custom-file">
+          <input type="file" class="custom-file-input" id="inputFileXlsx" (change)="onFileInputXlsxChange($event)" accept=".xlsx">
+          <label class="custom-file-label" for="inputFileXlsx">{{labelInputFileXlsx}}</label>
+        </div>
+      </div>
+      <div class="col-2">
         <input class="form-control" type="text" placeholder="Filtro rápido..." #filtro (input)="agGrid.api.setQuickFilter(filtro.value)" />
       </div>
     </div>
     <div class="row mt-3">
-      <div class="col">
+      <div class="col-12">
         <ag-grid-angular
           #agGrid
           style="width: 100%; height: 630px;" 
           class="ag-theme-balham" 
-          [rowData]="dadosK200" 
+          [rowData]="[]" 
           [columnDefs]="columnDefs"
           [defaultColDef]="defaultColDef"
           >
@@ -65,7 +73,8 @@ const LN = '\r\n';
   styles: []
 })
 export class AppComponent {
-  @ViewChild('agGrid', { static: true }) private agGrid: AgGridAngular;
+  @ViewChild('agGrid', { static: true })
+  private agGrid: AgGridAngular;
 
   private dados0000a0100: string[] = [];
   private dados0150: DadosExtras[] = [];
@@ -81,7 +90,8 @@ export class AppComponent {
 
   public dadosK200: ProdutoK200[] = [];
   public dadosK200Removidos: ProdutoK200[] = [];
-  public labelInputArquivo = 'Selecione o arquivo';
+  public labelInputFileTxt = 'Selecione o arquivo TXT (Bloco K)';
+  public labelInputFileXlsx = 'Selecione o arquivo XLSX (Inventário)';
   public columnDefs = [
     { headerName: 'Prefixo', field: 'prefixo' },
     { headerName: 'Data', field: 'data' },
@@ -231,10 +241,10 @@ export class AppComponent {
       .reduce((t, d) => t.concat(d.linha, LN), '');
   }
 
-  public onFileInputChange(evt: any) {
+  public onFileInputTxtChange(evt: any) {
     const target: DataTransfer = <DataTransfer>(evt.target);
     if (target.files.length === 1) {
-      this.labelInputArquivo = target.files.item(0).name;
+      this.labelInputFileTxt = target.files.item(0).name;
       const reader = new FileReader();
       reader.onload = () => {
         const texto = reader.result as string;
@@ -248,6 +258,49 @@ export class AppComponent {
       };
 
       reader.readAsText(target.files.item(0));
+    }
+  }
+
+  public onFileInputXlsxChange(evt: any) {
+    const target: DataTransfer = <DataTransfer>(evt.target);
+    if (target.files.length === 1) {
+      this.labelInputFileXlsx = target.files.item(0).name;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dados = new Uint8Array(e.target.result as ArrayBuffer);
+        const wb: XLSX.WorkBook = XLSX.read(dados, { type: 'array', cellDates: true, cellNF: true });
+        const wst = wb.Sheets['Bloco K Componentes Terceiros '];
+        const wsp = wb.Sheets['Bloco K'];
+
+        const invt: ProdutoK200[] = [];
+        let nl = 2;
+        while (true) {
+          const l = nl.toString();
+          if (isUndefined(wst[`A${l}`])) {
+            break;
+          }
+          const k = {
+            id: nl,
+            prefixo: 'K200',
+            data: '30092019',
+            codigo: wst[`C${l}`].v,
+            quantidade: parseFloat(wst[`E${l}`].w).toFixed(3).replace('.', ','),
+            posicao: '1',
+            fornecedor: wst[`A${l}`].v
+          };
+          if (k.quantidade !== '0,000') {
+            invt.push(k);
+          }
+          nl++;
+        }
+        this.agGrid.api.setRowData(invt);
+      };
+
+      reader.onerror = () => {
+        alert('Não foi possível ler o arquivo ' + target.files.item(0).name);
+      };
+
+      reader.readAsArrayBuffer(target.files.item(0));
     }
   }
 
