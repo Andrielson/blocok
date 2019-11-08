@@ -21,55 +21,17 @@ interface ProdutoK200 {
   fornecedor: string;
 }
 
+interface ProdutoINVT {
+  codigo: string;
+  quantidade: string;
+  fornecedor: string;
+}
+
 const LN = '\r\n';
 
 @Component({
   selector: 'app-root',
-  template: `
-  <div class="container mt-3">
-    <div class="row">
-      <div class="col-5">
-        <div class="custom-file">
-          <input type="file" class="custom-file-input" id="inputFileTxt" (change)="onFileInputTxtChange($event)" accept=".txt">
-          <label class="custom-file-label" for="inputFileTxt">{{labelInputFileTxt}}</label>
-        </div>
-      </div>
-      <div class="col-5">
-        <div class="custom-file">
-          <input type="file" class="custom-file-input" id="inputFileXlsx" (change)="onFileInputXlsxChange($event)" accept=".xlsx">
-          <label class="custom-file-label" for="inputFileXlsx">{{labelInputFileXlsx}}</label>
-        </div>
-      </div>
-      <div class="col-2">
-        <input class="form-control" type="text" placeholder="Filtro rápido..." #filtro (input)="agGrid.api.setQuickFilter(filtro.value)" />
-      </div>
-    </div>
-    <div class="row mt-3">
-      <div class="col-12">
-        <ag-grid-angular
-          #agGrid
-          style="width: 100%; height: 630px;" 
-          class="ag-theme-balham" 
-          [rowData]="[]" 
-          [columnDefs]="columnDefs"
-          [defaultColDef]="defaultColDef"
-          >
-        </ag-grid-angular>
-      </div>
-    </div>
-    <div class="row justify-content-around mt-3">
-      <div class="col-sm-2">
-        <button type="button" class="btn btn-danger" (click)="onClickRemover()">Remover produto</button>
-      </div>
-      <div class="col-sm-2">
-        <button type="button" class="btn btn-warning" [disabled]="dadosK200Removidos.length === 0" (click)="onClickDesfazerExclusao()">Desfazer exclusão</button>
-      </div>
-      <div class="col-sm-2">
-        <button type="button" class="btn btn-primary" [disabled]="dadosK200.length === 0" (click)="onClickBaixarArquivo()">Baixar arquivo</button>
-      </div>
-    </div>
-  </div>
-  `,
+  templateUrl: './app.component.html',
   styles: []
 })
 export class AppComponent {
@@ -92,18 +54,20 @@ export class AppComponent {
   public dadosK200Removidos: ProdutoK200[] = [];
   public labelInputFileTxt = 'Selecione o arquivo TXT (Bloco K)';
   public labelInputFileXlsx = 'Selecione o arquivo XLSX (Inventário)';
+  public inputFileXlsxStatus = true;
   public columnDefs = [
     { headerName: 'Prefixo', field: 'prefixo' },
     { headerName: 'Data', field: 'data' },
-    { headerName: 'Código', field: 'codigo', filter: true, checkboxSelection: true },
+    { headerName: 'Código', field: 'codigo', checkboxSelection: true },
     { headerName: 'Quantidade', field: 'quantidade', editable: true },
     { headerName: 'Posição', field: 'posicao' },
     { headerName: 'Fornecedor', field: 'fornecedor' }
   ];
   public defaultColDef = {
     resizable: true,
-    enableCellChangeFlash: true
+    enableCellChangeFlash: true,
   };
+  public getRowNodeId = (data: ProdutoK200) => `${data.codigo}|${data.posicao}|${data.fornecedor}`;
 
   private processaLinhas(linhas: string[]) {
     const prefs0000a0100 = ['|0000|', '|0001|', '|0005|', '|0100|'];
@@ -241,6 +205,21 @@ export class AppComponent {
       .reduce((t, d) => t.concat(d.linha, LN), '');
   }
 
+  private removeK200(k200: ProdutoK200) {
+    const i = this.dadosK200.findIndex(k => k.id === k200.id);
+    // Reduz a quantidade do fornecedor
+    this.setFornecedor(k200.fornecedor, -1);
+    // Reduz a quantidade do produto e da unidade
+    this.setProdutoUnidade(k200.codigo, -1);
+    // Insere na pilha de removidos
+    this.dadosK200Removidos.push(k200);
+    // Remove do array
+    this.dadosK200.splice(i, 1);
+    // Atualiza contador
+    this.contadorK990--;
+    this.contador9999--;
+  }
+
   public onFileInputTxtChange(evt: any) {
     const target: DataTransfer = <DataTransfer>(evt.target);
     if (target.files.length === 1) {
@@ -251,6 +230,7 @@ export class AppComponent {
         const linhas: string[] = texto.split(/\r\n|\n/);
         this.processaLinhas(linhas);
         this.agGrid.api.sizeColumnsToFit();
+        this.inputFileXlsxStatus = false;
       };
 
       reader.onerror = () => {
@@ -262,45 +242,81 @@ export class AppComponent {
   }
 
   public onFileInputXlsxChange(evt: any) {
-    const target: DataTransfer = <DataTransfer>(evt.target);
-    if (target.files.length === 1) {
-      this.labelInputFileXlsx = target.files.item(0).name;
+    const files = evt.target.files;
+    if (files.length === 1) {
+      this.labelInputFileXlsx = files.item(0).name;
       const reader = new FileReader();
       reader.onload = (e) => {
-        const dados = new Uint8Array(e.target.result as ArrayBuffer);
+        const dados = new Uint8Array(reader.result as ArrayBuffer);
         const wb: XLSX.WorkBook = XLSX.read(dados, { type: 'array', cellDates: true, cellNF: true });
         const wst = wb.Sheets['Bloco K Componentes Terceiros '];
         const wsp = wb.Sheets['Bloco K'];
+        const invt: ProdutoINVT[] = [];
 
-        const invt: ProdutoK200[] = [];
+        /* Bloco K Componentes Terceiros */
         let nl = 2;
         while (true) {
           const l = nl.toString();
           if (isUndefined(wst[`A${l}`])) {
             break;
           }
-          const k = {
-            id: nl,
-            prefixo: 'K200',
-            data: '30092019',
-            codigo: wst[`C${l}`].v,
-            quantidade: parseFloat(wst[`E${l}`].w).toFixed(3).replace('.', ','),
-            posicao: '1',
-            fornecedor: wst[`A${l}`].v
-          };
-          if (k.quantidade !== '0,000') {
-            invt.push(k);
+          const codigo = wst[`C${l}`].v;
+          const quantidade = parseFloat(wst[`E${l}`].w.replace(',', '')).toFixed(3).replace('.', ',');
+          const fornecedor = wst[`A${l}`].w;
+
+          const k200 = this.dadosK200.find(k => k.posicao === '1' && k.codigo === codigo && k.fornecedor === fornecedor);
+          if (k200) {
+            if (quantidade === '0,000') {
+              this.removeK200(k200);
+            } else if (k200.quantidade !== quantidade) {
+              k200.quantidade = quantidade;
+              const rowNode = this.agGrid.api.getRowNode(`${k200.codigo}|${k200.posicao}|${k200.fornecedor}`);
+              rowNode.setDataValue('quantidade', quantidade);
+              this.agGrid.api.ensureIndexVisible(rowNode.rowIndex, 'middle');
+              this.agGrid.api.flashCells({ rowNodes: [rowNode] });
+            }
+          } else {
+            invt.push({ codigo, quantidade, fornecedor });
           }
           nl++;
         }
-        this.agGrid.api.setRowData(invt);
+
+        /* Bloco K */
+        nl = 2;
+        while (true) {
+          const l = nl.toString();
+          if (isUndefined(wsp[`A${l}`])) {
+            break;
+          }
+          const codigo = wsp[`A${l}`].v;
+          const quantidade = parseFloat(wsp[`C${l}`].w.replace(',', '')).toFixed(3).replace('.', ',');
+          const fornecedor = '';
+          console.log(wst[`A${l}`]);
+
+          const k200 = this.dadosK200.find(k => k.posicao === '' && k.codigo === codigo);
+          if (k200) {
+            if (quantidade === '0,000') {
+              this.removeK200(k200);
+            } else if (k200.quantidade !== quantidade) {
+              k200.quantidade = quantidade;
+              const rowNode = this.agGrid.api.getRowNode(`${k200.codigo}|${k200.posicao}|${k200.fornecedor}`);
+              rowNode.setDataValue('quantidade', quantidade);
+              this.agGrid.api.ensureIndexVisible(rowNode.rowIndex, 'middle');
+              this.agGrid.api.flashCells({ rowNodes: [rowNode] });
+            }
+          } else {
+            invt.push({ codigo, quantidade, fornecedor });
+          }
+          nl++;
+        }
+        console.warn('Faltam inserir:', invt);
       };
 
       reader.onerror = () => {
-        alert('Não foi possível ler o arquivo ' + target.files.item(0).name);
+        alert('Não foi possível ler o arquivo ' + files.item(0).name);
       };
 
-      reader.readAsArrayBuffer(target.files.item(0));
+      reader.readAsArrayBuffer(files.item(0));
     }
   }
 
@@ -313,18 +329,7 @@ export class AppComponent {
     } else {
       const k200 = selecionados[0];
       if (confirm(`Deseja excluir o produto ${k200.codigo}?`)) {
-        const i = this.dadosK200.findIndex(k => k.id === k200.id);
-        // Reduz a quantidade do fornecedor
-        this.setFornecedor(k200.fornecedor, -1);
-        // Reduz a quantidade do produto e da unidade
-        this.setProdutoUnidade(k200.codigo, -1);
-        // Insere na pilha de removidos
-        this.dadosK200Removidos.push(k200);
-        // Remove do array
-        this.dadosK200.splice(i, 1);
-        // Atualiza contador
-        this.contadorK990--;
-        this.contador9999--;
+        this.removeK200(k200);
         // Atualiza grid
         this.agGrid.api.updateRowData({ remove: selecionados });
       }
@@ -364,14 +369,12 @@ export class AppComponent {
       this.contadorK990++;
       this.contador9999++;
       this.agGrid.api.setRowData(this.dadosK200);
-      this.agGrid.api.forEachNode(r => {
-        if (r.data.id === k200.id) {
-          this.agGrid.api.ensureIndexVisible(r.rowIndex, 'middle');
-          this.agGrid.api.flashCells({ rowNodes: [r] });
-          this.agGrid.api.selectNode(r);
-          return;
-        }
-      });
+      const rowNode = this.agGrid.api.getRowNode(`${k200.codigo}|${k200.posicao}|${k200.fornecedor}`);
+      if (rowNode) {
+        this.agGrid.api.ensureIndexVisible(rowNode.rowIndex, 'middle');
+        this.agGrid.api.flashCells({ rowNodes: [rowNode] });
+        this.agGrid.api.selectNode(rowNode);
+      }
     }
   }
 }
