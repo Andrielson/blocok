@@ -11,6 +11,8 @@
   },
   "private": true,
   "dependencies": {
+    "@ag-grid-community/all-modules": "^22.0.0",
+    "@ag-grid-community/angular": "^22.0.0",
     "@angular/animations": "^8.2.13",
     "@angular/common": "^8.2.13",
     "@angular/compiler": "^8.2.13",
@@ -20,8 +22,6 @@
     "@angular/platform-browser-dynamic": "~8.2.13",
     "@angular/router": "^8.2.13",
     "@ng-bootstrap/ng-bootstrap": "^5.1.2",
-    "ag-grid-angular": "^21.2.2",
-    "ag-grid-community": "^21.2.2",
     "bootstrap": "^4.3.1",
     "file-saver": "^2.0.2",
     "rxjs": "~6.5.3",

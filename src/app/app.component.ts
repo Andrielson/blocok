@@ -1,5 +1,6 @@
 import { Component, ViewChild } from '@angular/core';
-import { AgGridAngular } from 'ag-grid-angular';
+import { AgGridAngular } from '@ag-grid-community/angular';
+import { AllCommunityModules } from '@ag-grid-community/all-modules';
 import { saveAs } from 'file-saver';
 import * as XLSX from 'xlsx';
 import { isUndefined } from 'util';
@@ -35,7 +36,7 @@ const LN = '\r\n';
   styles: []
 })
 export class AppComponent {
-  @ViewChild('agGrid', { static: true })
+  @ViewChild('agGrid', { static: false })
   private agGrid: AgGridAngular;
 
   private dados0000a0100: string[] = [];
@@ -68,6 +69,7 @@ export class AppComponent {
     enableCellChangeFlash: true,
   };
   public getRowNodeId = (data: ProdutoK200) => `${data.codigo}|${data.posicao}|${data.fornecedor}`;
+  public modules = AllCommunityModules;
 
   private processaLinhas(linhas: string[]) {
     const prefs0000a0100 = ['|0000|', '|0001|', '|0005|', '|0100|'];

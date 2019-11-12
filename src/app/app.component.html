@@ -1,44 +1,74 @@
 <div class="container mt-3">
-    <div class="row">
-        <div class="col-5">
-            <div class="custom-file">
-                <input type="file" class="custom-file-input" id="inputFileTxt" (change)="onFileInputTxtChange($event)"
-                    accept=".txt">
-                <label class="custom-file-label" for="inputFileTxt" data-browse="Procurar">{{labelInputFileTxt}}</label>
-            </div>
-        </div>
-        <div class="col-5">
-            <div class="custom-file">
-                <input type="file" class="custom-file-input" id="inputFileXlsx" (change)="onFileInputXlsxChange($event)"
-                    accept=".xlsx" [disabled]="inputFileXlsxStatus">
-                <label class="custom-file-label" for="inputFileXlsx"
-                    data-browse="Procurar">{{labelInputFileXlsx}}</label>
-            </div>
-        </div>
-        <div class="col-2">
-            <input class="form-control" type="text" placeholder="Filtrar código..." #filtro
-                (input)="agGrid.api.setQuickFilter(filtro.value)" />
-        </div>
-    </div>
-    <div class="row mt-3">
-        <div class="col-12">
-            <ag-grid-angular #agGrid style="width: 100%; height: 630px;" class="ag-theme-balham"
-                [columnDefs]="columnDefs" [defaultColDef]="defaultColDef" [getRowNodeId]="getRowNodeId"
-                [rowData]="dadosK200">
-            </ag-grid-angular>
-        </div>
-    </div>
-    <div class="row justify-content-around mt-3">
-        <div class="col-sm-2">
-            <button type="button" class="btn btn-danger" (click)="onClickRemover()">Remover produto</button>
-        </div>
-        <div class="col-sm-2">
-            <button type="button" class="btn btn-warning" [disabled]="dadosK200Removidos.length === 0"
-                (click)="onClickDesfazerExclusao()">Desfazer exclusão</button>
-        </div>
-        <div class="col-sm-2">
-            <button type="button" class="btn btn-primary" [disabled]="dadosK200.length === 0"
-                (click)="onClickBaixarArquivo()">Baixar arquivo</button>
-        </div>
-    </div>
+    <ngb-accordion>
+        <ngb-panel id="panelArquivos">
+            <ng-template ngbPanelTitle>
+                <b>Arquivos & Tabela</b>
+            </ng-template>
+            <ng-template ngbPanelContent>
+                <div class="row">
+                    <div class="col-5">
+                        <div class="custom-file">
+                            <input type="file" class="custom-file-input" id="inputFileTxt"
+                                (change)="onFileInputTxtChange($event)" accept=".txt">
+                            <label class="custom-file-label" for="inputFileTxt"
+                                data-browse="Procurar">{{labelInputFileTxt}}</label>
+                        </div>
+                    </div>
+                    <div class="col-5">
+                        <div class="custom-file">
+                            <input type="file" class="custom-file-input" id="inputFileXlsx"
+                                (change)="onFileInputXlsxChange($event)" accept=".xlsx"
+                                [disabled]="inputFileXlsxStatus">
+                            <label class="custom-file-label" for="inputFileXlsx"
+                                data-browse="Procurar">{{labelInputFileXlsx}}</label>
+                        </div>
+                    </div>
+                    <div class="col-2">
+                        <input class="form-control" type="text" placeholder="Filtrar código..." #filtro
+                            (input)="agGrid.api.setQuickFilter(filtro.value)" />
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <ngb-progressbar type="info" [value]="50">Lendo produto <b>2 de 4</b>...</ngb-progressbar>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <ag-grid-angular #agGrid style="width: 100%; height: 630px;" class="ag-theme-balham"
+                            [columnDefs]="columnDefs" [defaultColDef]="defaultColDef" [getRowNodeId]="getRowNodeId"
+                            [rowData]="dadosK200" [modules]="modules">
+                        </ag-grid-angular>
+                    </div>
+                </div>
+                <div class="row justify-content-around mt-3">
+                    <div class="col-sm-2">
+                        <button type="button" class="btn btn-danger" (click)="onClickRemover()">Remover produto</button>
+                    </div>
+                    <div class="col-sm-2">
+                        <button type="button" class="btn btn-warning" [disabled]="dadosK200Removidos.length === 0"
+                            (click)="onClickDesfazerExclusao()">Desfazer exclusão</button>
+                    </div>
+                    <div class="col-sm-2">
+                        <button type="button" class="btn btn-primary" [disabled]="dadosK200.length === 0"
+                            (click)="onClickBaixarArquivo()">Baixar arquivo</button>
+                    </div>
+                </div>
+            </ng-template>
+        </ngb-panel>
+        <ngb-panel id="panelInseridos">
+            <ng-template ngbPanelTitle>
+                <b>Inserir</b>
+            </ng-template>
+            <ng-template ngbPanelContent>
+            </ng-template>
+        </ngb-panel>
+        <ngb-panel id="panelRemovidos">
+            <ng-template ngbPanelTitle>
+                <b>Remover</b>
+            </ng-template>
+            <ng-template ngbPanelContent>
+            </ng-template>
+        </ngb-panel>
+    </ngb-accordion>
 </div>
