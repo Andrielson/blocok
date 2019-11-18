@@ -1,5 +1,5 @@
 <div class="container mt-3">
-    <ngb-accordion>
+    <ngb-accordion activeIds="panelArquivos">
         <ngb-panel id="panelArquivos">
             <ng-template ngbPanelTitle>
                 <b>Arquivos & Tabela</b>
@@ -24,7 +24,7 @@
                         </div>
                     </div>
                     <div class="col-2">
-                        <input class="form-control" type="text" placeholder="Filtrar código..." #filtro
+                        <input class="form-control" type="text" placeholder="Filtro rápido..." #filtro
                             (input)="agGrid.api.setQuickFilter(filtro.value)" />
                     </div>
                 </div>
@@ -37,7 +37,7 @@
                     <div class="col-12">
                         <ag-grid-angular #agGrid style="width: 100%; height: 630px;" class="ag-theme-balham"
                             [columnDefs]="columnDefs" [defaultColDef]="defaultColDef" [getRowNodeId]="getRowNodeId"
-                            [rowData]="dadosK200" [modules]="modules">
+                            [rowData]="dadosK200" [modules]="modules" [rowClassRules]="rowClassRules">
                         </ag-grid-angular>
                     </div>
                 </div>

@@ -20,6 +20,7 @@ interface ProdutoK200 {
   quantidade: string;
   posicao: string;
   fornecedor: string;
+  status: string;
 }
 
 interface ProdutoINVT {
@@ -33,7 +34,6 @@ const LN = '\r\n';
 @Component({
   selector: 'app-root',
   templateUrl: './app.component.html',
-  styles: []
 })
 export class AppComponent {
   @ViewChild('agGrid', { static: false })
@@ -62,7 +62,8 @@ export class AppComponent {
     { headerName: 'Código', field: 'codigo', checkboxSelection: true },
     { headerName: 'Quantidade', field: 'quantidade', editable: true },
     { headerName: 'Posição', field: 'posicao' },
-    { headerName: 'Fornecedor', field: 'fornecedor' }
+    { headerName: 'Fornecedor', field: 'fornecedor' },
+    { headerName: 'Status', field: 'status' },
   ];
   public defaultColDef = {
     resizable: true,
@@ -70,6 +71,10 @@ export class AppComponent {
   };
   public getRowNodeId = (data: ProdutoK200) => `${data.codigo}|${data.posicao}|${data.fornecedor}`;
   public modules = AllCommunityModules;
+  public rowClassRules = {
+    'adicionado': "data.status === 'adicionado'",
+    'modificado': "data.status === 'modificado'",
+  };
 
   private processaLinhas(linhas: string[]) {
     const prefs0000a0100 = ['|0000|', '|0001|', '|0005|', '|0100|'];
@@ -126,7 +131,8 @@ export class AppComponent {
             codigo: d[3],
             quantidade: d[4],
             posicao: d[5],
-            fornecedor: d[6]
+            fornecedor: d[6],
+            status: 'original',
           };
 
           // Incrementa o contador dos fornecedores utilizados
@@ -256,13 +262,14 @@ export class AppComponent {
         const invt: ProdutoINVT[] = [];
 
         /* Bloco K Componentes Terceiros */
+        const itemsToUpdate: ProdutoK200[] = [];
         let nl = 2;
         while (true) {
           const l = nl.toString();
-          if (isUndefined(wst[`A${l}`])) {
+          if (isUndefined(wst[`C${l}`])) {
             break;
           }
-          const codigo = wst[`C${l}`].v;
+          const codigo = wst[`C${l}`].w.replace(',', '.').toUpperCase();
           const quantidade = parseFloat(wst[`E${l}`].w.replace(',', '')).toFixed(3).replace('.', ',');
           const fornecedor = wst[`A${l}`].w;
 
@@ -273,9 +280,10 @@ export class AppComponent {
             } else if (k200.quantidade !== quantidade) {
               k200.quantidade = quantidade;
               const rowNode = this.agGrid.api.getRowNode(`${k200.codigo}|${k200.posicao}|${k200.fornecedor}`);
-              rowNode.setDataValue('quantidade', quantidade);
-              this.agGrid.api.ensureIndexVisible(rowNode.rowIndex, 'middle');
-              this.agGrid.api.flashCells({ rowNodes: [rowNode] });
+              const data = rowNode.data;
+              data.quantidade = quantidade;
+              data.status = 'modificado';
+              itemsToUpdate.push(data);
             }
           } else {
             invt.push({ codigo, quantidade, fornecedor });
@@ -290,21 +298,22 @@ export class AppComponent {
           if (isUndefined(wsp[`A${l}`])) {
             break;
           }
-          const codigo = wsp[`A${l}`].v;
+          const codigo = wsp[`A${l}`].w.replace(',', '.').toUpperCase();
           const quantidade = parseFloat(wsp[`C${l}`].w.replace(',', '')).toFixed(3).replace('.', ',');
           const fornecedor = '';
-          console.log(wst[`A${l}`]);
 
-          const k200 = this.dadosK200.find(k => k.posicao === '' && k.codigo === codigo);
+          const k200 = this.dadosK200.find(k => k.posicao === '0' && k.codigo === codigo);
           if (k200) {
+            console.log('K200 =>', k200);
             if (quantidade === '0,000') {
               this.removeK200(k200);
             } else if (k200.quantidade !== quantidade) {
               k200.quantidade = quantidade;
               const rowNode = this.agGrid.api.getRowNode(`${k200.codigo}|${k200.posicao}|${k200.fornecedor}`);
-              rowNode.setDataValue('quantidade', quantidade);
-              this.agGrid.api.ensureIndexVisible(rowNode.rowIndex, 'middle');
-              this.agGrid.api.flashCells({ rowNodes: [rowNode] });
+              const data = rowNode.data;
+              data.quantidade = quantidade;
+              data.status = 'modificado';
+              itemsToUpdate.push(data);
             }
           } else {
             invt.push({ codigo, quantidade, fornecedor });
@@ -312,6 +321,7 @@ export class AppComponent {
           nl++;
         }
         console.warn('Faltam inserir:', invt);
+        this.agGrid.api.updateRowData({ update: itemsToUpdate });
       };
 
       reader.onerror = () => {
