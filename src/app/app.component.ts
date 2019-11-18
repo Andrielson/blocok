@@ -1,9 +1,10 @@
 import { Component, ViewChild } from '@angular/core';
 import { AgGridAngular } from '@ag-grid-community/angular';
 import { AllCommunityModules } from '@ag-grid-community/all-modules';
+import { NgbAccordion } from '@ng-bootstrap/ng-bootstrap';
 import { saveAs } from 'file-saver';
-import * as XLSX from 'xlsx';
 import { isUndefined } from 'util';
+import * as XLSX from 'xlsx';
 
 interface DadosExtras {
   id: number;
@@ -21,6 +22,7 @@ interface ProdutoK200 {
   posicao: string;
   fornecedor: string;
   status: string;
+  inventario: boolean;
 }
 
 interface ProdutoINVT {
@@ -36,8 +38,12 @@ const LN = '\r\n';
   templateUrl: './app.component.html',
 })
 export class AppComponent {
+  @ViewChild('acc', { static: true })
+  private acc: NgbAccordion;
   @ViewChild('agGrid', { static: false })
   private agGrid: AgGridAngular;
+  @ViewChild('agGridRemovidos', { static: false })
+  private agGridRemovidos: AgGridAngular;
 
   private dados0000a0100: string[] = [];
   private dados0150: DadosExtras[] = [];
@@ -124,7 +130,7 @@ export class AppComponent {
           this.contador0990 = Number(d[2]);
           break;
         case '|K200|':
-          const k = {
+          const k: ProdutoK200 = {
             id: i,
             prefixo: d[1],
             data: d[2],
@@ -133,6 +139,7 @@ export class AppComponent {
             posicao: d[5],
             fornecedor: d[6],
             status: 'original',
+            inventario: false,
           };
 
           // Incrementa o contador dos fornecedores utilizados
@@ -275,6 +282,7 @@ export class AppComponent {
 
           const k200 = this.dadosK200.find(k => k.posicao === '1' && k.codigo === codigo && k.fornecedor === fornecedor);
           if (k200) {
+            k200.inventario = true;
             if (quantidade === '0,000') {
               this.removeK200(k200);
             } else if (k200.quantidade !== quantidade) {
@@ -286,7 +294,7 @@ export class AppComponent {
               data.status = 'modificado';
               itemsToUpdate.push(data);
             }
-          } else if (quantidade !== '0,000') {
+          } else {
             // Procura pelo fornecedor
             const forne = this.dados0150.find(f => f.codigo === fornecedor);
             // Procura pelo produto
@@ -301,6 +309,7 @@ export class AppComponent {
                 data: this.dadosK200[0].data,
                 posicao: '1',
                 status: 'adicionado',
+                inventario: true,
                 codigo,
                 fornecedor,
                 quantidade,
@@ -330,6 +339,7 @@ export class AppComponent {
 
           const k200 = this.dadosK200.find(k => k.posicao === '0' && k.codigo === codigo);
           if (k200) {
+            k200.inventario = true;
             if (quantidade === '0,000') {
               this.removeK200(k200);
             } else if (k200.quantidade !== quantidade) {
@@ -341,7 +351,7 @@ export class AppComponent {
               data.status = 'modificado';
               itemsToUpdate.push(data);
             }
-          } else if (quantidade !== '0,000') {
+          } else {
             // Procura pelo produto
             const produ = this.dados0200.find(p => p.codigo === codigo);
 
@@ -354,6 +364,7 @@ export class AppComponent {
                 data: this.dadosK200[0].data,
                 posicao: '0',
                 status: 'adicionado',
+                inventario: true,
                 codigo,
                 fornecedor,
                 quantidade,
@@ -371,6 +382,9 @@ export class AppComponent {
         }
         console.warn('Faltam inserir:', invt);
         this.agGrid.api.updateRowData({ update: itemsToUpdate });
+        this.dadosK200.filter(k => !k.inventario).forEach(k => this.removeK200(k));
+        this.agGridRemovidos.api.setRowData(this.dadosK200Removidos);
+        this.agGridRemovidos.api.sizeColumnsToFit();
       };
 
       reader.onerror = () => {

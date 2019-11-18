@@ -1,8 +1,8 @@
 <div class="container mt-3">
-    <ngb-accordion activeIds="panelArquivos">
+    <ngb-accordion #acc="ngbAccordion" activeIds="panelArquivos, panelInseridos, panelRemovidos">
         <ngb-panel id="panelArquivos">
             <ng-template ngbPanelTitle>
-                <b>Arquivos & Tabela</b>
+                <h6>Arquivo K <span class="badge badge-info">{{dadosK200.length}}</span></h6>
             </ng-template>
             <ng-template ngbPanelContent>
                 <div class="row">
@@ -30,12 +30,7 @@
                 </div>
                 <div class="row mt-3">
                     <div class="col-12">
-                        <ngb-progressbar type="info" [value]="50">Lendo produto <b>2 de 4</b>...</ngb-progressbar>
-                    </div>
-                </div>
-                <div class="row mt-3">
-                    <div class="col-12">
-                        <ag-grid-angular #agGrid style="width: 100%; height: 630px;" class="ag-theme-balham"
+                        <ag-grid-angular #agGrid style="width: 100%; height: 600px;" class="ag-theme-balham"
                             [columnDefs]="columnDefs" [defaultColDef]="defaultColDef" [getRowNodeId]="getRowNodeId"
                             [rowData]="dadosK200" [modules]="modules" [rowClassRules]="rowClassRules">
                         </ag-grid-angular>
@@ -56,18 +51,19 @@
                 </div>
             </ng-template>
         </ngb-panel>
-        <ngb-panel id="panelInseridos">
-            <ng-template ngbPanelTitle>
-                <b>Inserir</b>
-            </ng-template>
-            <ng-template ngbPanelContent>
-            </ng-template>
-        </ngb-panel>
         <ngb-panel id="panelRemovidos">
             <ng-template ngbPanelTitle>
-                <b>Remover</b>
+                <h6>Removidos <span class="badge badge-danger">{{dadosK200Removidos.length}}</span></h6>
             </ng-template>
             <ng-template ngbPanelContent>
+                <div class="row">
+                    <div class="col-12">
+                        <ag-grid-angular #agGridRemovidos style="width: 100%; height: 600px;" class="ag-theme-balham"
+                            [columnDefs]="columnDefs" [getRowNodeId]="getRowNodeId" [rowData]="dadosK200Removidos"
+                            [modules]="modules">
+                        </ag-grid-angular>
+                    </div>
+                </div>
             </ng-template>
         </ngb-panel>
     </ngb-accordion>
