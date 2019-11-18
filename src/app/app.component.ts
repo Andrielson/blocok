@@ -279,14 +279,40 @@ export class AppComponent {
               this.removeK200(k200);
             } else if (k200.quantidade !== quantidade) {
               k200.quantidade = quantidade;
+              k200.status = 'modificado';
               const rowNode = this.agGrid.api.getRowNode(`${k200.codigo}|${k200.posicao}|${k200.fornecedor}`);
               const data = rowNode.data;
               data.quantidade = quantidade;
               data.status = 'modificado';
               itemsToUpdate.push(data);
             }
-          } else {
-            invt.push({ codigo, quantidade, fornecedor });
+          } else if (quantidade !== '0,000') {
+            // Procura pelo fornecedor
+            const forne = this.dados0150.find(f => f.codigo === fornecedor);
+            // Procura pelo produto
+            const produ = this.dados0200.find(p => p.codigo === codigo);
+
+            if (forne && produ) {
+              this.setFornecedor(fornecedor, +1);
+              this.setProdutoUnidade(codigo, +1);
+              const pk200: ProdutoK200 = {
+                id: 2000,
+                prefixo: 'K200',
+                data: this.dadosK200[0].data,
+                posicao: '1',
+                status: 'adicionado',
+                codigo,
+                fornecedor,
+                quantidade,
+              };
+              const i = this.dadosK200.findIndex(k => k.posicao === '1' && k.codigo >= codigo && k.fornecedor >= fornecedor);
+              this.dadosK200.splice(i, 0, pk200);
+              this.contadorK990++;
+              this.contador9999++;
+              this.agGrid.api.setRowData(this.dadosK200);
+            } else {
+              invt.push({ codigo, quantidade, fornecedor });
+            }
           }
           nl++;
         }
@@ -304,19 +330,42 @@ export class AppComponent {
 
           const k200 = this.dadosK200.find(k => k.posicao === '0' && k.codigo === codigo);
           if (k200) {
-            console.log('K200 =>', k200);
             if (quantidade === '0,000') {
               this.removeK200(k200);
             } else if (k200.quantidade !== quantidade) {
               k200.quantidade = quantidade;
+              k200.status = 'modificado';
               const rowNode = this.agGrid.api.getRowNode(`${k200.codigo}|${k200.posicao}|${k200.fornecedor}`);
               const data = rowNode.data;
               data.quantidade = quantidade;
               data.status = 'modificado';
               itemsToUpdate.push(data);
             }
-          } else {
-            invt.push({ codigo, quantidade, fornecedor });
+          } else if (quantidade !== '0,000') {
+            // Procura pelo produto
+            const produ = this.dados0200.find(p => p.codigo === codigo);
+
+            if (produ) {
+              this.setFornecedor(fornecedor, +1);
+              this.setProdutoUnidade(codigo, +1);
+              const pk200: ProdutoK200 = {
+                id: 2000,
+                prefixo: 'K200',
+                data: this.dadosK200[0].data,
+                posicao: '0',
+                status: 'adicionado',
+                codigo,
+                fornecedor,
+                quantidade,
+              };
+              const i = this.dadosK200.findIndex(k => k.posicao === '0' && k.codigo >= codigo);
+              this.dadosK200.splice(i, 0, pk200);
+              this.contadorK990++;
+              this.contador9999++;
+              this.agGrid.api.setRowData(this.dadosK200);
+            } else {
+              invt.push({ codigo, quantidade, fornecedor });
+            }
           }
           nl++;
         }
