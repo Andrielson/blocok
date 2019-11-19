@@ -1,6 +1,6 @@
 {
   "name": "blocok",
-  "version": "1.01.018",
+  "version": "1.01.019",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
