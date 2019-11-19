@@ -25,12 +25,6 @@ interface ProdutoK200 {
   inventario: boolean;
 }
 
-interface ProdutoINVT {
-  codigo: string;
-  quantidade: string;
-  fornecedor: string;
-}
-
 const LN = '\r\n';
 
 @Component({
@@ -44,6 +38,8 @@ export class AppComponent {
   private agGrid: AgGridAngular;
   @ViewChild('agGridRemovidos', { static: false })
   private agGridRemovidos: AgGridAngular;
+  @ViewChild('agGridInseridos', { static: false })
+  private agGridInseridos: AgGridAngular;
 
   private dados0000a0100: string[] = [];
   private dados0150: DadosExtras[] = [];
@@ -59,6 +55,7 @@ export class AppComponent {
 
   public dadosK200: ProdutoK200[] = [];
   public dadosK200Removidos: ProdutoK200[] = [];
+  public dadosK200Inseridos: ProdutoK200[] = [];
   public labelInputFileTxt = 'Selecione o arquivo TXT (Bloco K)';
   public labelInputFileXlsx = 'Selecione o arquivo XLSX (Inventário)';
   public inputFileXlsxStatus = true;
@@ -266,7 +263,6 @@ export class AppComponent {
         const wb: XLSX.WorkBook = XLSX.read(dados, { type: 'array', cellDates: true, cellNF: true });
         const wst = wb.Sheets['Bloco K Componentes Terceiros '];
         const wsp = wb.Sheets['Bloco K'];
-        const invt: ProdutoINVT[] = [];
 
         /* Bloco K Componentes Terceiros */
         const itemsToUpdate: ProdutoK200[] = [];
@@ -277,10 +273,12 @@ export class AppComponent {
             break;
           }
           const codigo = wst[`C${l}`].w.replace(',', '.').toUpperCase();
+          const descricao = wst[`D${l}`].w.toUpperCase();
           const quantidade = parseFloat(wst[`E${l}`].w.replace(',', '')).toFixed(3).replace('.', ',');
           const fornecedor = wst[`A${l}`].w;
+          const posicao = fornecedor.trim().length > 0 ? '1': '0';
 
-          const k200 = this.dadosK200.find(k => k.posicao === '1' && k.codigo === codigo && k.fornecedor === fornecedor);
+          const k200 = this.dadosK200.find(k => k.posicao === posicao && k.codigo === codigo && k.fornecedor === fornecedor);
           if (k200) {
             k200.inventario = true;
             if (quantidade === '0,000') {
@@ -294,33 +292,50 @@ export class AppComponent {
               data.status = 'modificado';
               itemsToUpdate.push(data);
             }
-          } else {
+          } else if (quantidade !== '0,000') {
+            const pk200: ProdutoK200 = {
+              id: 2000,
+              prefixo: 'K200',
+              data: this.dadosK200[0].data,
+              status: 'adicionado',
+              inventario: true,
+              posicao,
+              codigo,
+              fornecedor,
+              quantidade,
+            };
+            const i = this.dadosK200.findIndex(k => k.posicao === posicao && k.codigo >= codigo);
+            this.dadosK200.splice(i, 0, pk200);
+            this.contadorK990++;
+            this.contador9999++;
+            this.agGrid.api.setRowData(this.dadosK200);
             // Procura pelo fornecedor
             const forne = this.dados0150.find(f => f.codigo === fornecedor);
+            if (!forne) {
+              this.dados0190.push({
+                id: 0,
+                codigo: fornecedor,
+                linha: `|0150|${fornecedor}|RAZAO SOCIAL|1058|CNPJ||INSCRICAO ESTADUAL|INSCRICAO MUNICIPAL||RUA|Nº||BAIRRO|`,
+                quantidade: 0,
+              });
+            }
+            this.setFornecedor(fornecedor, +1);
             // Procura pelo produto
             const produ = this.dados0200.find(p => p.codigo === codigo);
-
-            if (forne && produ) {
-              this.setFornecedor(fornecedor, +1);
-              this.setProdutoUnidade(codigo, +1);
-              const pk200: ProdutoK200 = {
-                id: 2000,
-                prefixo: 'K200',
-                data: this.dadosK200[0].data,
-                posicao: '1',
-                status: 'adicionado',
-                inventario: true,
+            if (!produ) {
+              const pro0200 = {
+                id: 0,
                 codigo,
-                fornecedor,
-                quantidade,
+                linha: `|0200|${codigo}|${descricao}|CODIGO DE BARRAS||UN||NCM||||ICMS||`,
+                quantidade: 0,
               };
-              const i = this.dadosK200.findIndex(k => k.posicao === '1' && k.codigo >= codigo && k.fornecedor >= fornecedor);
-              this.dadosK200.splice(i, 0, pk200);
-              this.contadorK990++;
-              this.contador9999++;
-              this.agGrid.api.setRowData(this.dadosK200);
-            } else {
-              invt.push({ codigo, quantidade, fornecedor });
+              const j = this.dados0200.findIndex(p => p.codigo > codigo);
+              this.dados0200.splice(j, 0, pro0200);
+            }
+            this.setProdutoUnidade(codigo, +1);
+
+            if (!produ || !forne && fornecedor.trim().length > 0) {
+              this.dadosK200Inseridos.push(pk200);
             }
           }
           nl++;
@@ -334,10 +349,12 @@ export class AppComponent {
             break;
           }
           const codigo = wsp[`A${l}`].w.replace(',', '.').toUpperCase();
+          const descricao = wsp[`B${l}`].w.toUpperCase();
           const quantidade = parseFloat(wsp[`C${l}`].w.replace(',', '')).toFixed(3).replace('.', ',');
           const fornecedor = '';
+          const posicao = fornecedor.trim().length > 0 ? '1': '0';
 
-          const k200 = this.dadosK200.find(k => k.posicao === '0' && k.codigo === codigo);
+          const k200 = this.dadosK200.find(k => k.posicao === posicao && k.codigo === codigo);
           if (k200) {
             k200.inventario = true;
             if (quantidade === '0,000') {
@@ -351,40 +368,61 @@ export class AppComponent {
               data.status = 'modificado';
               itemsToUpdate.push(data);
             }
-          } else {
+          } else if (quantidade !== '0,000') {
+            const pk200: ProdutoK200 = {
+              id: 2000,
+              prefixo: 'K200',
+              data: this.dadosK200[0].data,
+              status: 'adicionado',
+              inventario: true,
+              posicao,
+              codigo,
+              fornecedor,
+              quantidade,
+            };
+            const i = this.dadosK200.findIndex(k => k.posicao === posicao && k.codigo >= codigo);
+            this.dadosK200.splice(i, 0, pk200);
+            this.contadorK990++;
+            this.contador9999++;
+            this.agGrid.api.setRowData(this.dadosK200);
+
+            // Procura pelo fornecedor
+            const forne = this.dados0150.find(f => f.codigo === fornecedor);
+            if (!forne) {
+              this.dados0190.push({
+                id: 0,
+                codigo: fornecedor,
+                linha: `|0150|${fornecedor}|RAZAO SOCIAL|1058|CNPJ||INSCRICAO ESTADUAL|INSCRICAO MUNICIPAL||RUA|Nº||BAIRRO|`,
+                quantidade: 0,
+              });
+            }
+            this.setFornecedor(fornecedor, +1);
             // Procura pelo produto
             const produ = this.dados0200.find(p => p.codigo === codigo);
-
-            if (produ) {
-              this.setFornecedor(fornecedor, +1);
-              this.setProdutoUnidade(codigo, +1);
-              const pk200: ProdutoK200 = {
-                id: 2000,
-                prefixo: 'K200',
-                data: this.dadosK200[0].data,
-                posicao: '0',
-                status: 'adicionado',
-                inventario: true,
+            if (!produ) {
+              const pro0200 = {
+                id: 0,
                 codigo,
-                fornecedor,
-                quantidade,
+                linha: `|0200|${codigo}|${descricao}|CODIGO DE BARRAS||UN||NCM||||ICMS||`,
+                quantidade: 0,
               };
-              const i = this.dadosK200.findIndex(k => k.posicao === '0' && k.codigo >= codigo);
-              this.dadosK200.splice(i, 0, pk200);
-              this.contadorK990++;
-              this.contador9999++;
-              this.agGrid.api.setRowData(this.dadosK200);
-            } else {
-              invt.push({ codigo, quantidade, fornecedor });
+              const j = this.dados0200.findIndex(p => p.codigo > codigo);
+              this.dados0200.splice(j, 0, pro0200);
+            }
+            this.setProdutoUnidade(codigo, +1);
+
+            if (!produ || !forne && fornecedor.trim().length > 0) {
+              this.dadosK200Inseridos.push(pk200);
             }
           }
           nl++;
         }
-        console.warn('Faltam inserir:', invt);
         this.agGrid.api.updateRowData({ update: itemsToUpdate });
         this.dadosK200.filter(k => !k.inventario).forEach(k => this.removeK200(k));
         this.agGridRemovidos.api.setRowData(this.dadosK200Removidos);
         this.agGridRemovidos.api.sizeColumnsToFit();
+        this.agGridInseridos.api.setRowData(this.dadosK200Inseridos);
+        this.agGridInseridos.api.sizeColumnsToFit();
       };
 
       reader.onerror = () => {
