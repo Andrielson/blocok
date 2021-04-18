@@ -86,8 +86,8 @@ As seguintes ferramentas foram usadas na construção do projeto:
 > Veja o arquivo  [package.json](https://github.com/andrielson/blocok/blob/master/package.json)
 
 **Utilitários**
--   Editor:  **[Visual Studio Code](https://code.visualstudio.com/)**  → Extensions:  **[SQLite](https://marketplace.visualstudio.com/items?itemName=alexcvzz.vscode-sqlite)**
--   Markdown:  **[StackEdit](https://stackedit.io/)**,  **[Markdown Emoji](https://gist.github.com/rxaviers/7360908)**
+-   Editor:  **[Visual Studio Code](https://code.visualstudio.com/)**
+-   Markdown:  **[StackEdit](https://stackedit.io/)**
 
 
 ## 💪 Como contribuir no projeto
